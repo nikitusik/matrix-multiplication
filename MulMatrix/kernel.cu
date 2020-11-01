@@ -10,7 +10,7 @@
 #include <math.h>
 
 const int BLOCK_SIZE = 32;
-const int N = 256;
+const int N = 1024;
 const int RANDOM_NUMBER = 101;
 
 __global__ void mulMatrixDevice(int* C, int* A, int* B, int N){
@@ -80,24 +80,18 @@ int main(){
 	cudaMalloc((void**)&dev_c, matrixSize * sizeof(int));
 	randomMatrix(matrixA, matrixSize);
 	randomMatrix(matrixB, matrixSize);
-
+	
 	clock_t time = clock();
 	mulMatrixHost(matrixA, matrixB, hostMatrixC, N);
 	double hostTime = double(clock() - time) * 1000 / CLOCKS_PER_SEC;
 
-	cudaEvent_t start, stop;
-	float deviceTime = 0.0f;
-	cudaEventCreate(&start);
-	cudaEventCreate(&stop);
-	cudaEventRecord(start, 0);
+	time = clock();
 	cudaMemcpy(dev_a, matrixA, matrixSize * sizeof(int), cudaMemcpyHostToDevice);
 	cudaMemcpy(dev_b, matrixB, matrixSize * sizeof(int), cudaMemcpyHostToDevice);
 	mulMatrixDevice << <dim3(N / BLOCK_SIZE, N / BLOCK_SIZE), dim3(BLOCK_SIZE, BLOCK_SIZE) >> >(dev_c, dev_a, dev_b, N);
 	cudaDeviceSynchronize();
 	cudaMemcpy(deviceMatrixC, dev_c, matrixSize * sizeof(int), cudaMemcpyDeviceToHost);
-	cudaEventRecord(stop, 0);
-	cudaEventSynchronize(stop);
-	cudaEventElapsedTime(&deviceTime, start, stop);
+	double deviceTime = double(clock() - time) * 1000 / CLOCKS_PER_SEC;
 
 	if (checkMatrix(hostMatrixC, deviceMatrixC, matrixSize)) {
 		printf("CPU: %f\n", hostTime);
@@ -113,8 +107,6 @@ int main(){
 	cudaFree(dev_c);
 	cudaFree(dev_a);
 	cudaFree(dev_b);
-	cudaEventDestroy(start);
-	cudaEventDestroy(stop);
 	system("pause");
 	return 0;
 }
